@@ -47,7 +47,7 @@ plot(T[1:length(sub1)],sub1, type="l",xlim=c(startT,endT),xlab="Time(s)",ylab="A
 #averaging
 loc <- which(sub4>1)
 
-????
+??
 
 
 
