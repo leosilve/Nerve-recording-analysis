@@ -2,43 +2,47 @@
 title: "Report Data Analysis"
 author: "David"
 date: "16 April 2019"
-
 output:
   html_document:
-    df_print: paged
-  pdf_document: default
+    fig_caption: yes
 ---
-#Rabbit experiment 5
-The present experiment recorded the nerve response of a rabbit. The signal is detetced by an array of electrode and collected both electrically and optically. 
+
+# Rabbit experiment 5
+The present experiment recorded the nerve response of a rabbit. The signal is detected by an array of electrode and collected both electrically and optically. 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 library(signal)
 library(quantmod)
+library(knitr)
+library(captioner)
 ```
-```{r read files, eval=FALSE, include=FALSE}
+```{r readfiles optical}
 
 ##############Parameters Initialise#######################
 FS <- 100000     # Hz Sampling Frequency
 SKIP <- 0        # s skip the first SKIP seconds
 ButterOder <- 3   # Order of the filter
-CutFreq <- 1/100  # Cut-off frequncy (0-1) 1:Nyquist Frequency
+Cutoff <- 2000    # Cut-off frequency
+CutFreq <- Cutoff/FS   # Cut-off frequncy (0-1) 1:Nyquist Frequency
 N1 <- 10         # Replace NAN in 1 Channel with N1
 N2 <- -10000     #
-startT <- 0.04
-endT <- 0.06 # interested interval in s
+startT <- 0.045
+endT <- 0.055 # interested interval in s
 I <- 1       #numbers of files read
-
-pa <- file.choose()  #file path
+# pa <- file.choose()  #file path
+# Nams <- "null"
+# Nams[I] <- basename(pa)
+DataTable <- read.table("2019_04_12_Rabbit_experiment_5/Data/optrode amp 1V freq 20 Hz duration 50us recording from last and third last electrodes", skip=9)
 I <- I+1
-Nams[I] <- pa
-DataTable <- read.table(pa, skip=9)
-
+Nam1 <- "Third Electrode"          #indicate the channel and the names
+Nam2 <-  "First Electrode"
 #Table 2 Vector
 T <- DataTable[,1]
 Chan1 <- DataTable[,2]
-Chan2 <- DataTable[,3]
+Chan2 <- -DataTable[,3]
 Chan3 <- DataTable[,4]
 Chan4 <- DataTable[,5]
+Chan2 <- Chan2/1000
 
 #Optional: Saturation NAN Replacement
 Chan1[is.nan(Chan1)] <- N1
@@ -50,12 +54,168 @@ sub2 <- Chan2[(SKIP*FS+1):length(Chan1)]
 sub3 <- Chan3[(SKIP*FS+1):length(Chan1)] 
 sub4 <- Chan4[(SKIP*FS+1):length(Chan1)] 
 ```
-#Optical outputs
+# Optical outputs
 One of the response in the optical recordings is shown below.
-```{r Raw Data}
-dev.new()
-par(mfrow=c(2,1))
-plot(T[1:length(sub1)],sub1, type="l",xlim=c(startT,endT),xlab="Time(s)",ylab="Amplitude(V)",main="Real Time Waveform")
-lines(T[1:length(sub1)],sub2,xlim=c(startT,endT),xlab="Time(s)",ylab="Amplitude(V)",main="Real Time Waveform")
+
+```{r fig.cap="Optical Measurement",fig.align='center'}
+par(mfrow=c(1,2))
+plot(T[1:length(sub1)],sub1,type="l",xlim=c(startT,endT),xlab="Time(s)",ylab="Amplitude(V)",main=Nam1)
+plot(T[1:length(sub1)],sub2,type="l",xlim=c(startT,endT),xlab="Time(s)",ylab="Amplitude(V)",main=Nam2)
+```
+The following shows the waveform after averaging and filtering.
+```{r fig.align='center'}
+#Filter
+bf <- butter(ButterOder, CutFreq, type = "low")
+z1 <- filter(bf, sub1)
+z2 <- filter(bf, sub2)
+par(mfrow=c(1,2))
+plot(T[1:length(sub2)],z1, type="l",xlim=c(startT,endT),xlab="Time(s)",ylab="Amplitude(V)",main=paste(Nam1,"After Filter Above","\n",Cutoff, "Hz"))
+plot(T[1:length(sub2)],z2, type="l",xlim=c(startT,endT),xlab="Time(s)",ylab="Amplitude(V)",main=paste(Nam2,"After Filter Above","\n",Cutoff,"Hz"))
 ```
 
+```{r fig.cap="Optical Measurement",fig.align='center'}
+#averaging
+pks <- findPeaks(sub4,0.0019)
+distance <- pks[2]-pks[1]
+ct <- floor(distance/3)
+s1 <- 0
+s2 <- 0
+for (p in pks[2:(length(pks)-1)]){
+  s1 <- s1+Chan1[(p-ct):(p+ct)]
+  s2 <- s2+Chan2[(p-ct):(p+ct)]
+}
+s1 <- s1/(length(pks)-2)
+s2 <- s2/(length(pks)-2)
+ts <- (1:length(s1))/FS
+par(mfrow=c(1,2))
+plot(ts,s1,type="l",xlab="Time(s)",ylab="Amplitude(V)",main=paste("Average",Nam1))
+plot(ts,s2,type="l",xlab="Time(s)",ylab="Amplitude(V)",main=paste("Average",Nam2))
+```
+```{r fig.align='center'}
+#Filter
+bf <- butter(ButterOder, CutFreq, type = "low")
+z1 <- filter(bf, s1)
+z2 <- filter(bf, s2)
+par(mfrow=c(1,2))
+plot(T[1:length(s1)],s1, type="l",main="Overlap the Waveform",xlab="Time(s)",ylab="Amplitude(V)",lty=3,xlim=c(0.015,0.020))
+lines(T[1:length(s2)],s2-0.3, type="l",xlab="Time(s)",ylab="Amplitude(V)",lty=1)
+legend("topright",c("Third Electrode","First Electrode"),lty=c(3,1),cex = 0.5)
+plot(T[1:length(z1)],z1, type="l",main="Overlap the Waveform",xlab="Time(s)",ylab="Amplitude(V)",lty=3,xlim=c(0.015,0.020))
+lines(T[1:length(z2)],z2-0.3, type="l",xlab="Time(s)",ylab="Amplitude(V)",lty=1)
+legend("topright",c("Third Electrode","First Electrode"),lty=c(3,1),cex = 0.5)
+```
+```{r Optical-speed}
+section <- 0.0175     #the section after the large peak
+distns <- 1            #distance of the two electrode(cm)
+mx1 <- which.max(z1[(section*FS):length(z1)])+(section*FS)
+mx2 <- which.max(z2[(section*FS):length(z2)])+(section*FS)
+sped <- (distns/100)/abs((mx1-mx2)/FS)
+```
+The artifact of the stimulation has not time shift, the peaks are well-aligned. However, the nerve response has a delay because the response speed is much slower than light speed, and the calculated response propagation speed is `r sped`m/s.
+```{r save1}
+sav1 <- sub1
+subsav <- z1
+#Third op
+sav2 <- sub2
+subsav2 <-z2 
+#First op
+```
+
+
+# Electrical outputs
+```{r readfiles electrical}
+##############Parameters Initialise#######################
+FS <- 100000     # Hz Sampling Frequency
+SKIP <- 0        # s skip the first SKIP seconds
+ButterOder <- 3   # Order of the filter
+CutFreq <- 1/100  # Cut-off frequncy (0-1) 1:Nyquist Frequency
+N1 <- 10         # Replace NAN in 1 Channel with N1
+N2 <- 10000     #
+startT <- 0.045
+endT <- 0.055 # interested interval in s
+I <- 1       #numbers of files read
+# pa <- file.choose()  #file path
+# Nams <- "null"
+# Nams[I] <- basename(pa)
+DataTable <- read.table("2019_04_12_Rabbit_experiment_5/Data/amp 0.5V freq 20 Hz duration 50us recording from last and second last electrodes", skip=9)
+I <- I+1
+Nam1 <- "Last Electrode"
+Nam2 <- "Second Last Electrode"
+
+#Table 2 Vector
+T <- DataTable[,1]
+Chan1 <- DataTable[,2]
+Chan2 <- DataTable[,3]
+Chan3 <- DataTable[,4]
+Chan4 <- DataTable[,5]
+
+#Optional: Saturation NAN Replacement
+Chan1[is.nan(Chan1)] <- N1
+Chan2[is.nan(Chan2)] <- N2
+Chan2 <- Chan2/1000
+#Subset
+sub1 <- Chan1[(SKIP*FS+1):length(Chan1)] 
+sub2 <- Chan2[(SKIP*FS+1):length(Chan1)] 
+sub3 <- Chan3[(SKIP*FS+1):length(Chan1)] 
+sub4 <- Chan4[(SKIP*FS+1):length(Chan1)] 
+```
+
+
+```{r fig.cap="Electrical Measurement",fig.align='center'}
+par(mfrow=c(1,2))
+plot(T[1:length(sub1)],sub1,type="l",xlim=c(startT,endT),xlab="Time(s)",ylab="Amplitude(V)",main=Nam1)
+plot(T[1:length(sub1)],sub2,type="l",xlim=c(startT,endT),xlab="Time(s)",ylab="Amplitude(V)",main=Nam2)
+```
+
+```{r fig.align='center'}
+#Filter
+bf <- butter(ButterOder, CutFreq, type = "low")
+z1 <- filter(bf, sub1)
+z2 <- filter(bf, sub2)
+par(mfrow=c(1,2))
+plot(T[1:length(sub2)],z1, type="l",xlim=c(startT,endT),xlab="Time(s)",ylab="Amplitude(V)",main=paste(Nam1,"After Filter Above","\n",Cutoff, "Hz"))
+plot(T[1:length(sub2)],z2, type="l",xlim=c(startT,endT),xlab="Time(s)",ylab="Amplitude(V)",main=paste(Nam2,"After Filter Above","\n",Cutoff,"Hz"))
+```
+```{r fig.cap="Electrical Measurement",fig.align='center'}
+#averaging
+Stimfre <- 20      #stimulation frequency
+Distns <- 1/Stimfre*FS      #distance of the stimulations
+Inistim <- 4                  #first peak location
+ct <- floor(Distns/3)
+s1 <- 0
+s2 <- 0
+for (p in seq(from = Inistim+Distns , to = length(sub1)-Distns ,by =Distns )){
+  s1 <- s1+Chan1[(p-ct):(p+ct)]
+  s2 <- s2+Chan2[(p-ct):(p+ct)]
+}
+s1 <- s1/(length(pks)-2)
+s2 <- s2/(length(pks)-2)
+ts <- (1:length(s1))/FS
+par(mfrow=c(1,2))
+plot(ts,s1,type="l",xlab="Time(s)",ylab="Amplitude(V)",main=paste("Average",Nam1),xlim = c(0.015,0.025))
+plot(ts,s2,type="l",xlab="Time(s)",ylab="Amplitude(V)",main=paste("Average",Nam2),xlim = c(0.015,0.025))
+```
+```{r fig.align='center'}
+#Filter
+bf <- butter(ButterOder, CutFreq, type = "low")
+z1 <- filter(bf, s1)
+z2 <- filter(bf, s2)
+par(mfrow=c(1,2))
+plot(T[1:length(s1)],s1, type="l",main="Overlap the Waveform",xlab="Time(s)",ylab="Amplitude(V)",lty=3,xlim=c(0.015,0.020))
+lines(T[1:length(s2)],s2, type="l",xlab="Time(s)",ylab="Amplitude(V)",lty=1)
+legend("topright",c("Last Electrode","Second Last Electrode"),lty=c(3,1),cex = 0.5)
+plot(T[1:length(z1)],z1, type="l",main="Overlap the Waveform",xlab="Time(s)",ylab="Amplitude(V)",lty=3,xlim=c(0.015,0.020))
+lines(T[1:length(z2)],z2, type="l",xlab="Time(s)",ylab="Amplitude(V)",lty=1)
+legend("topleft",c("Last Electrode","Second Last Electrode"),lty=c(3,1),cex = 0.5)
+```
+```{r Electrical-speed}
+section <- 0.018      #the section after the large peak
+distns <- 1            #distance of the two electrode(cm)
+mx1 <- which.max(z1[(section*FS):length(z1)])+(section*FS)
+mx2 <- which.max(z2[(section*FS):length(z2)])+(section*FS)
+spedf <- (distns/100)/abs((mx1-mx2)/FS)
+mx1 <- which.max(s1[(section*FS):length(s1)])+(section*FS)
+mx2 <- which.max(s2[(section*FS):length(s2)])+(section*FS)
+sped <- (distns/100)/abs((mx1-mx2)/FS)
+```
+The speed of response propagation in the nerve of electrical measurement is `r spedf`m/s after filtering and `r sped`m/s without filtering.
