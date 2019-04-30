@@ -9,29 +9,53 @@ output:
   pdf_document: default
 ---
 #Rabbit experiment 5
-The present experiment recorded the nerve response of a rabbit. The signal is detetced by an array of electrode and collected both electrically and optically.
+The present experiment recorded the nerve response of a rabbit. The signal is detetced by an array of electrode and collected both electrically and optically. 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-l=9
+knitr::opts_chunk$set(echo = FALSE)
+library(signal)
+library(quantmod)
+```
+```{r read files, eval=FALSE, include=FALSE}
+
+##############Parameters Initialise#######################
+FS <- 100000     # Hz Sampling Frequency
+SKIP <- 0        # s skip the first SKIP seconds
+ButterOder <- 3   # Order of the filter
+CutFreq <- 1/100  # Cut-off frequncy (0-1) 1:Nyquist Frequency
+N1 <- 10         # Replace NAN in 1 Channel with N1
+N2 <- -10000     #
+startT <- 0.04
+endT <- 0.06 # interested interval in s
+I <- 1       #numbers of files read
+
+pa <- file.choose()  #file path
+I <- I+1
+Nams[I] <- pa
+DataTable <- read.table(pa, skip=9)
+
+#Table 2 Vector
+T <- DataTable[,1]
+Chan1 <- DataTable[,2]
+Chan2 <- DataTable[,3]
+Chan3 <- DataTable[,4]
+Chan4 <- DataTable[,5]
+
+#Optional: Saturation NAN Replacement
+Chan1[is.nan(Chan1)] <- N1
+Chan2[is.nan(Chan2)] <- N2
+
+#Subset
+sub1 <- Chan1[(SKIP*FS+1):length(Chan1)] 
+sub2 <- Chan2[(SKIP*FS+1):length(Chan1)] 
+sub3 <- Chan3[(SKIP*FS+1):length(Chan1)] 
+sub4 <- Chan4[(SKIP*FS+1):length(Chan1)] 
+```
+#Optical outputs
+One of the response in the optical recordings is shown below.
+```{r Raw Data}
+dev.new()
+par(mfrow=c(2,1))
+plot(T[1:length(sub1)],sub1, type="l",xlim=c(startT,endT),xlab="Time(s)",ylab="Amplitude(V)",main="Real Time Waveform")
+lines(T[1:length(sub1)],sub2,xlim=c(startT,endT),xlab="Time(s)",ylab="Amplitude(V)",main="Real Time Waveform")
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
-l=10
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
